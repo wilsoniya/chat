@@ -1,0 +1,13 @@
+[package]
+name = "chat"
+version = "0.1.0"
+authors = ["Michael Wilson <wilsoniya@gmail.com>"]
+
+[dependencies]
+log = "0.4.1"
+env_logger = "0.5.2"
+rand = "0.4.2"
+clap = "2.29.2"
+igd = "0.7.0"
+stun = "0.0.2"
+kademlia = { git = "https://github.com/leejunseok/kademlia-rs" }
