@@ -3,6 +3,14 @@ name = "chat"
 version = "0.1.0"
 authors = ["Michael Wilson <wilsoniya@gmail.com>"]
 
+[[bin]]
+name = "chat"
+path = "src/main.rs"
+
+[[bin]]
+name = "udp_test"
+path = "src/udp_test.rs"
+
 [dependencies]
 log = "0.4.1"
 env_logger = "0.5.2"
@@ -11,3 +19,6 @@ clap = "2.29.2"
 igd = "0.7.0"
 stun = "0.0.2"
 kademlia = { git = "https://github.com/leejunseok/kademlia-rs" }
+
+futures = "0.1.17"
+tokio-core = "0.1.12"
