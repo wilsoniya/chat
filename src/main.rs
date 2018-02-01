@@ -6,8 +6,17 @@ extern crate clap;
 extern crate igd;
 extern crate stun;
 extern crate kademlia;
+extern crate futures;
+extern crate tokio_core;
+
+mod udp_p2p;
 
 use clap::{Arg, App};
+use futures::stream::Stream;
+use tokio_core::net::UdpSocket;
+use tokio_core::reactor::Core;
+
+use udp_p2p::ChatMedium;
 
 const NET_ID: &'static str = "chat_net";
 
@@ -65,6 +74,10 @@ fn main() {
         network_name.clone(), node_id, bind_address, bootstrap);
 
     info!("Kademlia network: {}; node_id: {:?}", network_name, node_id);
+
+
+    let chat = ChatMedium::new();
+
 
     dht.put(username.to_owned(), bind_address.to_owned());
     info!("Stored chat peer in DHT: username={} node_address={}",
