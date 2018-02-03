@@ -16,10 +16,10 @@ use futures::stream::Stream;
 use tokio_core::net::UdpSocket;
 use tokio_core::reactor::Core;
 
-use udp_p2p::ChatMedium;
+use udp_p2p::ChatConnection;
 
 const NET_ID: &'static str = "chat_net";
-
+const chat_bind_addr: &'static str = "0.0.0.0:6900";
 
 fn main() {
     env_logger::init();
@@ -76,7 +76,8 @@ fn main() {
     info!("Kademlia network: {}; node_id: {:?}", network_name, node_id);
 
 
-    let chat = ChatMedium::new();
+    let addr = chat_bind_addr.parse().expect("could not parse bind address");
+    let chat_conn = ChatConnection::new(addr);
 
 
     dht.put(username.to_owned(), bind_address.to_owned());
