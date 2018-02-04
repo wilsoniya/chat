@@ -2,8 +2,9 @@ use std::io::Result;
 use std::io::{Error, ErrorKind};
 use std::net::{SocketAddr, ToSocketAddrs, UdpSocket};
 use std::str::from_utf8;
+use std::sync::mpsc::{Receiver, Sender, channel, sync_channel};
 use std::thread;
-use std::sync::mpsc::{Receiver, Sender, channel};
+use std::time::Duration;
 
 use log;
 
@@ -12,17 +13,27 @@ type Message = (SocketAddr, String);
 pub struct ChatConnection {
     inbound: Receiver<Message>,
     outbound: Sender<Message>,
+    bind_addr: SocketAddr,
 }
 
 impl ChatConnection {
-    pub fn new(bind_address: SocketAddr) -> ChatConnection {
+    pub fn new() -> ChatConnection {
         let (tx, inbound): (Sender<Message>, Receiver<Message>) = channel();
         let (outbound, rx): (Sender<Message>, Receiver<Message>) = channel();
+        let (bind_addr_tx, bind_addr_rx) = sync_channel(1);
+
+        let bind_address: SocketAddr = "0.0.0.0:0".parse()
+            .expect("could not parse chat bind address");
 
         // inbound socket
         thread::spawn(move || {
             let socket = UdpSocket::bind(bind_address)
                 .expect("Could not open UDP socket");
+
+            if let Ok(addr) = socket.local_addr() {
+                bind_addr_tx.send(addr);
+            }
+
             let mut buf = [0u8; 8192];
 
             loop {
@@ -41,6 +52,7 @@ impl ChatConnection {
                         break;
                     },
                 }
+                info!("Exiting chat socket listener loop")
             }
         });
 
@@ -65,16 +77,28 @@ impl ChatConnection {
                         break;
                     }
                 }
+                info!("Exiting chat socket sender loop")
             }
         });
+
+        let timeout = Duration::new(1, 0);
+        let bind_addr = bind_addr_rx.recv_timeout(timeout)
+            .expect("Could not receive chat bind address");
+
+        info!("Listening for chats on {}", bind_addr);
 
         ChatConnection {
             inbound: inbound,
             outbound: outbound,
+            bind_addr: bind_addr,
         }
     }
 
     pub fn send(&self, dest: SocketAddr, msg: String) {
         self.outbound.send((dest, msg));
+    }
+
+    pub fn listen_addr(&self) -> SocketAddr {
+        self.bind_addr
     }
 }

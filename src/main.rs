@@ -19,7 +19,6 @@ use tokio_core::reactor::Core;
 use udp_p2p::ChatConnection;
 
 const NET_ID: &'static str = "chat_net";
-const chat_bind_addr: &'static str = "0.0.0.0:6900";
 
 fn main() {
     env_logger::init();
@@ -29,9 +28,9 @@ fn main() {
              .index(1)
              .help("Your desired username")
              .required(true))
-        .arg(Arg::with_name("address")
+        .arg(Arg::with_name("dht_address")
              .index(2)
-             .help("Bind address hostname:port")
+             .help("DHT Bind address hostname:port")
              .required(true))
         .arg(Arg::with_name("bootstrap")
              .short("b")
@@ -49,8 +48,8 @@ fn main() {
 
     let username = matches.value_of("username")
         .expect("Username must be supplied");
-    let bind_address = matches.value_of("address")
-        .expect("Address must be supplied");
+    let dht_bind_address = matches.value_of("dht_address")
+        .expect("DHT Address must be supplied");
     let maybe_bootstrap_address = matches.value_of("bootstrap");
     let maybe_bootstrap_key = matches.value_of("bootstrap_key");
 
@@ -71,18 +70,18 @@ fn main() {
     let node_id = kademlia::Key::hash(username.to_owned());
 
     let dht = kademlia::Kademlia::start(
-        network_name.clone(), node_id, bind_address, bootstrap);
+        network_name.clone(), node_id, dht_bind_address, bootstrap);
 
     info!("Kademlia network: {}; node_id: {:?}", network_name, node_id);
 
 
-    let addr = chat_bind_addr.parse().expect("could not parse bind address");
-    let chat_conn = ChatConnection::new(addr);
+    let chat_conn = ChatConnection::new();
+    let chat_bind_addr = chat_conn.listen_addr();
 
 
-    dht.put(username.to_owned(), bind_address.to_owned());
+    dht.put(username.to_owned(), chat_bind_addr.to_string());
     info!("Stored chat peer in DHT: username={} node_address={}",
-          username, bind_address);
+          username, chat_bind_addr.to_string());
 
     let stdin = std::io::stdin();
     let mut line = String::new();
