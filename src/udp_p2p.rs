@@ -6,6 +6,8 @@ use std::sync::mpsc::{Receiver, Sender, channel, sync_channel};
 use std::thread;
 use std::time::Duration;
 
+use stun::{Attribute, Client, IpVersion, Message as StunMessage, XorMappedAddress};
+
 use log;
 
 type Message = (SocketAddr, String);
@@ -22,12 +24,20 @@ impl ChatConnection {
         let (outbound, rx): (Sender<Message>, Receiver<Message>) = channel();
         let (bind_addr_tx, bind_addr_rx) = sync_channel(1);
 
-        let bind_address: SocketAddr = "0.0.0.0:0".parse()
-            .expect("could not parse chat bind address");
+        let mut pub_addr = get_public_listen_address(0)
+            .expect("could not get public listen address");
+
+        if let SocketAddr::V4(addr) = pub_addr {
+            let mut _addr = addr.clone();
+            _addr.set_ip("0.0.0.0".parse().expect("ASDF"));
+            pub_addr = SocketAddr::V4(_addr);
+        }
+
+        info!("Public chat listen address: {}", pub_addr);
 
         // inbound socket
         thread::spawn(move || {
-            let socket = UdpSocket::bind(bind_address)
+            let socket = UdpSocket::bind(pub_addr)
                 .expect("Could not open UDP socket");
 
             if let Ok(addr) = socket.local_addr() {
@@ -101,4 +111,25 @@ impl ChatConnection {
     pub fn listen_addr(&self) -> SocketAddr {
         self.bind_addr
     }
+}
+
+fn get_public_listen_address(port: u16) -> Option<SocketAddr> {
+   // stun server list: https://gist.github.com/zziuni/3741933
+    let server = "173.194.203.127:19302";
+    let ipv4 = IpVersion::V4;
+    let client = Client::new(server, port, ipv4);
+    let mesage = StunMessage::request();
+    let encoded = mesage.encode();
+    let response_bytes = client.send(encoded.clone());
+    let response: StunMessage = StunMessage::decode(response_bytes);
+
+    info!("STUN response: {:?}", response);
+
+    response.attributes.iter().filter_map(|attr| {
+        if let Attribute::XorMappedAddress(XorMappedAddress(addr)) = *attr {
+            Some(addr)
+        } else {
+            None
+        }
+    }).nth(0)
 }
